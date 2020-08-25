@@ -4,10 +4,7 @@ Script and data for assessing interdisciplinarity in cognitive science
 
 ## The *data* folder
 All the data used to produce the results is contained in this repository.
-The *data* folder includes the data used in the JSD - Gini part of the paper.
-It contains two subfolders:
-* The *journals* subfolder includes all papers published in 20 journals from 2009 to 2018 as obtained from Web of Science. This folder is compressed in the *journals.7z* archive and must be decompressed before running scripts to re-generate the data.
-* The *authors* subfolder includes one .csv for each of the authors that coauthored any of the papers. Each .csv has the publications made by that authors in the period before and during the data contained in *journals*. The authors were divided into 4 .7z archives that must be decompressed before running scripts to re-generate the data.
+However, because of copyright restrictions, we only included the *processed* data that results from the *r_scripts/data_processing.R*. This processed objects can be found in the *saved_objects* folder in *.rds* format. For raw data questions, please contact the authors at pc684 at cornell dot edu.
 
 ## The *theories_data* folder
 
