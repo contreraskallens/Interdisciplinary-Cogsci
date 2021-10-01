@@ -3,20 +3,27 @@ require(tidyverse)
 source('functions.R')
 
 # Load results from data_processing.R ----
-years <- read_rds('../saved_objects/journalData.rds') # Saved product from previous chunk
+years <- read_rds('../saved_objects/journalData.rds') # Saved product from previous
 publication.count.matrix <- read_rds('../saved_objects/authorByJournal_id.rds')
 
 # Transform the sparse matrix into a probability matrix now.
 # First, transpose so that each column is now the journal count of each author
 publication.probability.matrix <- publication.count.matrix %>% t()
+
+# mat <- as.matrix(publication.probability.matrix)
+
 # publication.probability.matrix@x holds the non-zero entries of the matrix.
 # publication.probability.matrix@p holds the number of non-zero elements in each column
 # Thus, we can make a vector where the sum of each column is repeated x times,
 # where x is the number of non-zero entries in that column, and element-wise
 # divide the non-zero entries by this vector to get the within-author proportion
 # instead of the raw count.
+
 publication.probability.matrix@x <- publication.probability.matrix@x / rep.int(colSums(publication.probability.matrix), diff(publication.probability.matrix@p))
 publication.probability.matrix <- t(publication.probability.matrix)
+
+publication.probability.matrix <- irlba::prcomp_irlba(publication.probability.matrix, n = 200)
+publication.count.matrix <- irlba::prcomp_irlba(publication.count.matrix, n = 200)
 
 # JSD ----
 

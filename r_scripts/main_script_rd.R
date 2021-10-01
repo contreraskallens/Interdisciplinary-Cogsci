@@ -59,8 +59,8 @@ jsd.boot.plot <- jsd.boot.plot %>%
   geom_point(size = 2) + 
   labs(y = "NJSD") +
   coord_flip() + 
-  cowplot::theme_cowplot() + 
-  cowplot::background_grid() + 
+  theme_cowplot() + 
+  background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
   labs(title = "Mean JSD by Journal", subtitle = "Bootstrapped Confidence Intervals") +
@@ -77,8 +77,8 @@ njsd.boot.plot <- njsd.boot.plot %>%
   geom_point(size = 2) + 
   labs(y = "NJSD") +
   coord_flip() + 
-  cowplot::theme_cowplot() + 
-  cowplot::background_grid() + 
+  theme_cowplot() + 
+  background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
   scale_color_manual(values = c("black", "red")) +
@@ -147,8 +147,8 @@ jsd.plot <- jsd.frame %>%
   geom_point(size = 2) + 
   labs(y = "JSD") +
   coord_flip() + 
-  cowplot::theme_cowplot() + 
-  cowplot::background_grid() + 
+  theme_cowplot() + 
+  background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
   scale_color_manual(values = c("black", "red"))
@@ -164,8 +164,8 @@ njsd.plot <- njsd.frame %>%
   geom_point(size = 2) + 
   labs(y = "NJSD") +
   coord_flip() + 
-  cowplot::theme_cowplot() + 
-  cowplot::background_grid() + 
+  theme_cowplot() + 
+  background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
   scale_color_manual(values = c("black", "red"))
@@ -174,16 +174,15 @@ njsd.plot
 ggsave(plot = njsd.plot, filename = "../extra_figures/njsd_reg_plot.png", width = 15,
        height = 6, dpi = 300)
 
-
 # Make hypothetical distributions to illustrate plot
 
 high.dists <- ggplot() +
-  geom_area(data = data.frame(values = dbeta(seq(0, 1, length = 10000), 2, 8),
+  geom_area(data = data.frame(values = dbeta(seq(0, 1, length = 10000), 2, 7),
                               index = c(1:10000)), aes(y = values, x = index),
             fill = "seagreen",
             color = "black",
             alpha = 0.75) +
-  geom_area(data = data.frame(values = dbeta(seq(0, 1, length = 10000), 8, 2),
+  geom_area(data = data.frame(values = dbeta(seq(0, 1, length = 10000), 7, 2),
                               index = c(1:10000)), aes(y = values, x = index),
             fill = "skyblue",
             color = "black",
@@ -203,38 +202,48 @@ low.dists <- ggplot() +
             alpha = 0.75) +
   theme_nothing()
 
-njsd.with.dists <- plot_grid(plot_grid(low.dists, NULL, high.dists, rel_widths = c(0.3, 0.3, 0.3), nrow = 1),
+njsd.with.dists <- plot_grid(plot_grid(low.dists, NULL, NULL, high.dists, rel_widths = c(0.25, 0.25, 0.25, 0.25), nrow = 1),
                              njsd.plot, nrow = 2,
                              rel_heights = c(0.1, 0.9))
+njsd.with.dists
 ggsave(plot = njsd.with.dists, filename = "../main_figures/njsd_with_dists.png", width = 15,
        height = 7, dpi = 300, bg = "white")
 
+# Time analysis ----
 
+complete.frame <- mutate(complete.frame,
+                         YearNum = as.numeric(Year),
+                         Type = ifelse(cogsci, "CogSci", "Non-CogSci"))
 
-######################################################
-###################################################### time analysis
-######################################################
-######################################################
-
-complete.frame$YearNum = as.numeric(complete.frame$Year)
 year.reg <- lm(data = complete.frame, NJSD ~ Label + gini + Number.Of.Publications.Log + Year)
 summary(year.reg)
 
-topics = aggregate(NJSD~YearNum,data=complete.frame[complete.frame$Label=='Top. Cogn. Sci.',],mean)
-csj = aggregate(NJSD~YearNum,data=complete.frame[complete.frame$Label=='Cogn. Sci.',],mean)
-cogsci = aggregate(NJSD~YearNum,data=complete.frame[complete.frame$cogsci,],mean) %>% 
-  add_column(Type = "CogSci")
-ncogsci = aggregate(NJSD~YearNum,data=complete.frame[!complete.frame$cogsci,],mean) %>% 
-  add_column(Type = "Non-CogSci")
+yearly.cogsci <- filter(complete.frame, Type == "CogSci") %>%
+  group_by(YearNum, Label) %>% 
+  summarize(NJSD = mean(NJSD))
+yearly.noncogsci <- yearly.others %>% 
+  group_by(YearNum) %>% 
+  summarize(NJSD = mean(NJSD))
+yearly.cogsci <- yearly.noncogsci %>% 
+  rename(Other.NJSD = NJSD) %>% 
+  right_join(yearly.cogsci) %>% 
+  mutate(difference = NJSD - Other.NJSD)
 
-topics_diff = topics$NJSD-ncogsci$NJSD
-csj_diff = csj$NJSD-ncogsci$NJSD
+# Test correlation of difference between both Cogsci journals and the others
+cogsci.diff <- yearly.cogsci %>% 
+  select(YearNum, Label, difference) %>% 
+  pivot_wider(values_from = c(difference), names_from = c(Label))
+cor.test(cogsci.diff$`Cogn. Sci.`, cogsci.diff$`Top. Cogn. Sci.`)
 
-cor.test(topics_diff,csj_diff)
+# Plot CogSci time series versus other time series
 
-njsd.year <- bind_rows(cogsci, ncogsci)
+njsd.year <- complete.frame %>% 
+  group_by(YearNum, Type, Label) %>% 
+  summarise(NJSD = mean(NJSD))
 
-njsd.year <- ggplot(njsd.year, aes(x = YearNum, y = NJSD, color = Type, group = Type)) + 
+njsd.year.plot <- group_by(complete.frame, YearNum, Type) %>% 
+  summarize(NJSD = mean(NJSD)) %>% 
+  ggplot(aes(x = YearNum, y = NJSD, color = Type, group = Type)) + 
   geom_point(size = 2) +
   geom_line(size = 1) +
   theme_cowplot() +
@@ -242,30 +251,26 @@ njsd.year <- ggplot(njsd.year, aes(x = YearNum, y = NJSD, color = Type, group = 
   scale_color_manual(values = c("red", "black")) +
   labs(x = "Year") +
   theme(legend.position = "none")
+njsd.year.plot
 
-journals_year = aggregate(NJSD~Label+Year,data=complete.frame,mean) %>% 
-  mutate(Type = ifelse(Label %in% c("Cogn. Sci.", "Top. Cogn. Sci."), "CogSci", "Non-CogSci"))
-
-journals_year <- ggplot(journals_year, aes(x = Year, y = NJSD, color = Type)) +
+journals.year.plot <- ggplot(njsd.year, aes(x = YearNum, y = NJSD, color = Type)) +
   geom_point() +
   theme_cowplot() +
   background_grid() +
   scale_color_manual(values = c("red", "black")) +
   labs(x = "Year") +
   theme(legend.position = "none")
+journals.year.plot
   
-year.grid <- plot_grid(njsd.year, journals_year, nrow = 1)
-
+year.grid <- plot_grid(njsd.year.plot, journals.year.plot, nrow = 1)
+year.grid
 ggsave(plot = year.grid, filename = "../main_figures/year_grid.png", width = 15,
        height = 7, dpi = 300, bg = "white")
 
+# Interaction between cogsci-noncogsci and year
 
-######################################################
-######################################################
-######################################################
-######################################################
-
-
+type.reg <- lm(formula = NJSD ~ Type + gini + Number.Of.Publications.Log + YearNum + Type * YearNum, data = complete.frame)
+summary(type.reg)
 
 # Theories per author and journals ---------
 
@@ -375,7 +380,6 @@ for(author in all.authors){
   print(author)
   plot.author(author, save = TRUE)
 }
-
 
 # Plot journals
 theory.levels <- c("bayesian", "connectionism", "distributed", "dynamical",
