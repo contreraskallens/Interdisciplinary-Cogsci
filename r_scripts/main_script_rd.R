@@ -12,7 +12,7 @@ source('functions.R')
 
 # This is the result of JSD.R
 # Gini column includes nan because of the formula
-complete.frame <- read_rds('../saved_objects/complete_frame_ids.rds') %>%   
+complete.frame <- read_rds('../saved_objects/complete_frame_ids_cluster.rds') %>%   
   filter(!(is.nan(gini))) %>% 
   mutate(label = Journal)
 
@@ -201,8 +201,22 @@ low.dists <- ggplot() +
             color = "black",
             alpha = 0.75) +
   theme_nothing()
+# Make arrows for plot
+arrow.right <- ggplot()+
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 0), size = 2,
+               arrow = arrow(length = unit(0.2, "inches")), lineend = "round", linejoin = "round") +
+  xlim(-0.1, 1.1) +
+  ylim(-0.5, 0.5) +
+  theme_void()
 
-njsd.with.dists <- plot_grid(plot_grid(low.dists, NULL, NULL, high.dists, rel_widths = c(0.25, 0.25, 0.25, 0.25), nrow = 1),
+arrow.left <- ggplot()+
+  geom_segment(aes(x = 1, y = 0, xend = 0, yend = 0), size = 2,
+               arrow = arrow(length = unit(0.2, "inches")), lineend = "round", linejoin = "round") +
+  xlim(-0.1, 1.1) +
+  ylim(-0.5, 0.5) +
+  theme_void()
+
+njsd.with.dists <- plot_grid(plot_grid(NULL, low.dists, arrow.left, arrow.right, high.dists, rel_widths = c(0.11, 0.22, 0.22, 0.22, 0.22), nrow = 1),
                              njsd.plot, nrow = 2,
                              rel_heights = c(0.1, 0.9))
 njsd.with.dists
@@ -221,7 +235,7 @@ summary(year.reg)
 yearly.cogsci <- filter(complete.frame, Type == "CogSci") %>%
   group_by(YearNum, Label) %>% 
   summarize(NJSD = mean(NJSD))
-yearly.noncogsci <- yearly.others %>% 
+yearly.noncogsci <- filter(complete.frame, Type == "Non-CogSci") %>%
   group_by(YearNum) %>% 
   summarize(NJSD = mean(NJSD))
 yearly.cogsci <- yearly.noncogsci %>% 
