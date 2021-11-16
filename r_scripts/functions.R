@@ -1,3 +1,5 @@
+library(fmsb)
+
 clean.for.JSD <- function(df){
   # Cleans the dataframe of useless columns to loop more efficiently when calculating JSD.
   df <- df %>%
@@ -119,3 +121,97 @@ entropy.weight <- function(matrix) {
   return(t(temp.matrix)) 
 }
 
+# For each author with more than 2 publications, gets the mean score for each theory
+get.author.stats <- function(author, frame = authors.and.abstracts.cogsci){
+  print(author)
+  author.df <- authors.and.abstracts.cogsci %>%
+    filter_all(any_vars(str_detect(., author))) %>%
+    select(bayesian, connectionism, ecological, distributed, embodied, dynamical, enactive, symbolic) %>%
+    sweep(1, rowSums(.), FUN = "/")
+  if(nrow(author.df) <= 2){return(NA)}
+  
+  author.df <- author.df %>%
+    colMeans() %>%
+    t() %>%
+    as_tibble %>%
+    add_column(author = author)
+  return(author.df)
+}
+
+plot.author <- function(this.author, save = FALSE, 
+                        fill = c(rgb(0.3, 0.3, 0.3, 0.25), rgb(0.62, 0.02, 0.36, 0.5)),
+                        color = ){
+  # Function to plot authors as "power charts" or "radar charts"
+  # The vertices of the radar are the maximum of each theory and the
+  # Base is the minimum of each theory. A grey polygon is drawn to show the mean
+  # score for each theory.
+  # If you want to save the file instead of viewing it, save = TRUE
+  
+  author.wide <- all.author.stats %>% 
+    filter(author == this.author) %>% 
+    select(-author)
+  author.initial <- str_extract(this.author, "[:alpha:]")
+  if(save){
+    author.dir <- paste0("../author_figures/", author.initial, "/")
+    if(!(dir.exists(author.dir))){
+      dir.create(author.dir)
+    }
+    png(paste0("../author_figures/", author.initial, "/", this.author, ".png"), width = 1500, height = 1500,
+        res = 300, units = "px")}
+  
+  max.min <- bind_rows(theory.max, theory.min)
+  author.wide <- bind_rows(max.min, theory.mean, author.wide) 
+  author.plot <- fmsb::radarchart(df = author.wide,
+                                  pcol = c("black", "#dc3091"), # Color for border
+                                  pty = c(32, 32), # Symbol of points
+                                  plwd = c(1, 3), # Linewidth of border
+                                  plty = c(3, 1), # Linetype
+                                  pfcol = color,
+                                  cglty=1, # Linetype for grid
+                                  cglwd = 1, # Line width for grid
+                                  cglcol= "#3c0d76", # Line color for grid
+                                  axistype = 0, # No axis labels
+                                  seg = 4, # Number of segments of the radar
+                                  axislabcol = "#3c0d76", # Color of axis label
+                                  vlcex = 1, # Font size for labels
+                                  title = paste(this.author) # Title
+  )
+  if(save){
+    author.plot
+    dev.off()}
+}
+
+
+plot.journal <- function(this.journal){
+  journal.df <- journal.boot %>% 
+    filter(Journal == this.journal)
+  upper <- journal.df %>% 
+    select(contains("Upper"))
+  colnames(upper) <- theory.levels
+  lower <- journal.df %>% 
+    select(contains("Lower"))
+  colnames(lower) <- theory.levels
+  mean <- journal.df %>% 
+    select(contains("Mean"))
+  colnames(mean) <- theory.levels
+  
+  all.journal.data <- bind_rows(max.min.journal,
+                                upper, mean)
+  print(all.journal.data)
+  fmsb::radarchart(df = all.journal.data,
+                   pcol = c("black", "black"),
+                   pty = c(32, 32),
+                   plwd = c(1, 3),
+                   plty = c(3, 1),
+                   pfcol = c(rgb(0.3, 0.3, 0.3, 0.25),
+                             rgb(0.26, 0.45, 0.29, 0.5)),
+                   cglty=1,
+                   cglwd = 1,
+                   cglcol= "#3c0d76",
+                   axistype = 0,
+                   seg = 4,
+                   axislabcol = "#3c0d76",
+                   vlcex = 1,
+                   title = paste(this.journal)
+  )
+}

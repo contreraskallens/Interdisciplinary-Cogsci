@@ -82,7 +82,7 @@ njsd.boot.plot <- njsd.boot.plot %>%
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
   scale_color_manual(values = c("black", "red")) +
-  scale_y_continuous(breaks = seq(0.4, 0.5, 0.01))
+  scale_y_continuous(breaks = seq(0.2, 0.5, 0.01))
 njsd.boot.plot
 ggsave(plot = njsd.boot.plot, filename = "../extra_figures/njsd_boot.png", width = 15,
        height = 6, dpi = 300)
@@ -123,6 +123,48 @@ jsd.frame <- jsd.reg %>%
   arrange(desc(emmean)) %>%
   rename(Journal = Label) %>% 
   left_join(color.frame.journal)
+
+old.new.comparison <- complete.frame %>% 
+  group_by(Label) %>% 
+  summarize(mean.new = mean(NJSD), sd.new = sd(NJSD), mean.old = mean(old.NJSD), sd.old = sd(old.NJSD))
+new.njsd <- old.new.comparison %>% 
+  select(Label, mean = mean.new, sd = sd.new) %>% 
+  add_column(type = "cluster")
+old.njsd <- old.new.comparison %>% 
+  select(Label, mean = mean.old, sd = sd.old) %>% 
+  add_column(type = "og")
+
+
+bind_rows(new.njsd, old.njsd) %>% 
+  ggplot(aes(x = Label, group = type, color = type)) +
+  geom_pointrange(aes(y = mean, ymin = mean - sd, ymax = mean + sd), position = position_dodge(width = 1)) +
+  coord_flip()
+old.new.comparison <- old.new.comparison %>% 
+  mutate(diff = mean.old - mean.new) 
+levels(old.new.comparison$Label) <-old.new.comparison %>% 
+  arrange(-diff) %>% 
+  .$Label
+mean.diff <- ggplot(old.new.comparison, aes(x = Label)) +
+  geom_point(aes(y = mean.new), color = "black") +
+  geom_point(aes(y = mean.old), color = "red") +
+  geom_segment(aes(x = Label, xend = Label, y = mean.old, yend = mean.new), linetype = "dotted") +
+  geom_label(aes(label = round(diff, digits = 2), y = mean.new + (diff / 2))) +
+  labs(y = "Mean NJSD",
+       subtitle = "red = old NJSD, black = cluster NJSD") +
+  coord_flip()
+old.new.comparison <- old.new.comparison %>% 
+  mutate(diff = sd.old - sd.new) 
+sd.diff <- ggplot(old.new.comparison, aes(x = Label)) +
+  geom_point(aes(y = sd.new), color = "black") +
+  geom_point(aes(y = sd.old), color = "red") +
+  geom_segment(aes(x = Label, xend = Label, y = sd.old, yend = sd.new), linetype = "dotted") +
+  geom_label(aes(label = round(diff, digits = 3), y = sd.new + (diff / 3))) +
+  labs(y = "SD of NJSD",
+       subtitle = "red = old NJSD, black = cluster NJSD") +
+  coord_flip() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank())
+plot_grid(mean.diff, sd.diff, rel_widths = c(0.6, 0.4))
 
 njsd.reg <- lm(data = complete.frame, NJSD ~ Label + gini + Number.Of.Publications.Log) 
 summary(njsd.reg)
@@ -168,7 +210,8 @@ njsd.plot <- njsd.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red"))
+  scale_color_manual(values = c("black", "red")) +
+  scale_y_continuous(breaks = seq(0.2, 0.5, 0.01))
 
 njsd.plot
 ggsave(plot = njsd.plot, filename = "../extra_figures/njsd_reg_plot.png", width = 15,
@@ -291,23 +334,6 @@ summary(type.reg)
 # Load result of theories.R
 authors.and.abstracts.cogsci <- read_rds("../saved_objects/cogsci_theories.rds")
 
-# For each author with more than 2 publications, gets the mean score for each theory
-
-get.author.stats <- function(author){
-  print(author)
-  author.df <- authors.and.abstracts.cogsci %>%
-    filter_all(any_vars(str_detect(., author))) %>%
-    select(bayesian, connectionism, ecological, distributed, embodied, dynamical, enactive, symbolic) %>%
-    sweep(1, rowSums(.), FUN = "/")
-  if(nrow(author.df) <= 2){return(NA)}
-
-  author.df <- author.df %>%
-    colMeans() %>%
-    t() %>%
-    as_tibble %>%
-    add_column(author = author)
-  return(author.df)
-}
 
 # all.authors <- authors.and.abstracts.cogsci %>%
 #   select(contains("name")) %>%

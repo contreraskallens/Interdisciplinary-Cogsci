@@ -118,6 +118,8 @@ dimnames(distance.matrix) <- list(colnames(publication.count.matrix),
 dist.matrix <- as.dist(distance.matrix)
 write_rds(dist.matrix, "dist_matrix.Rds", compress = "xz")
 
+dist.matrix <- read_rds("dist_matrix.Rds")
+
 cluster.solution <- cluster::agnes(dist.matrix, 
                                    diss = TRUE, 
                                    keep.diss = F, 
@@ -125,6 +127,7 @@ cluster.solution <- cluster::agnes(dist.matrix,
                                    method = "ward")
 
 write_rds(cluster.solution, "cluster_solution.Rds")
+cluster.solution <- read_rds("cluster_solution.Rds")
 
 silhouette_k = function(k, clusters, distances){
   print(k)
@@ -137,13 +140,13 @@ silhouette_k = function(k, clusters, distances){
     as_tibble()
 }
 
-all.silhouettes <- seq(10, 6000, 10) %>% 
+all.silhouettes <- c(10, seq(50, 6000, 50)) %>% 
   set_names() %>% 
   map_dfr(silhouette_k, cluster.solution, dist.matrix, 
           .id = 'k') %>% 
   mutate(k = as.integer(k))
 
-sil.plot = ggplot(all.silhouettes, 
+sil.plot <- ggplot(all.silhouettes, 
                   aes(x = k, y = sil_width, 
                       label = k, 
                       group = k)) +

@@ -1,6 +1,7 @@
 library(tidyverse)
 library(cowplot)
 library(fmsb)
+library(psych)
 
 # When re-running everything, uncomment source() lines and comment read_rds() lines
 # If not, just load the RDS objects that result from them.
@@ -119,6 +120,8 @@ complete.frame <- complete.frame %>%
 
 jsd.reg <- lm(data = complete.frame, 
               JSD ~ Label + gini + Number.Of.Authors.Log + Number.Of.Publications.Log) 
+jsd.reg.2 <- lm(data = complete.frame, 
+              JSD ~ Label + gini + Number.Of.Authors.Log) 
 jsd.frame <- jsd.reg %>% 
   emmeans::emmeans("Label") %>% 
   summary() %>% 
@@ -126,15 +129,30 @@ jsd.frame <- jsd.reg %>%
   rename(Journal = Label) %>% 
   left_join(color.frame.journal)
 
+jsd.frame.2 <- jsd.reg.2 %>% 
+  emmeans::emmeans("Label") %>% 
+  summary() %>% 
+  arrange(desc(emmean)) %>%
+  rename(Journal = Label) %>% 
+  left_join(color.frame.journal)
+
 njsd.reg <- lm(data = complete.frame, NJSD ~ Label + gini + Number.Of.Publications.Log) 
+njsd.reg.2 <- lm(data = complete.frame, NJSD ~ Label + gini) 
 summary(njsd.reg)
+summary(njsd.reg.2)
 # Get semi partial R^2 of Journal
 njsd.reg.reduced <- lm(data = complete.frame, NJSD ~ Number.Of.Publications.Log + gini) 
 summary(njsd.reg)$adj.r.squared - summary(njsd.reg.reduced)$adj.r.squared
 anova(njsd.reg.reduced, njsd.reg)
 
 
-njsd.frame <- njsd.reg %>% 
+njsd.frame <- njsd.reg.2 %>% 
+  emmeans::emmeans("Label") %>% 
+  summary() %>% 
+  arrange(desc(emmean)) %>% 
+  rename(Journal = Label) %>% 
+  left_join(color.frame.journal)
+njsd.frame.2 <- njsd.reg.2 %>% 
   emmeans::emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>% 

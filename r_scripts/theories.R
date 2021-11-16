@@ -67,7 +67,6 @@ distance.matrix <- document.loadings %>%
   parDist(method = "cosine") %>%
   as.matrix()
 
-
 # Dendrogram and heatmap are big picture of theory structure
 
 # Get mean distances to every theory
@@ -94,7 +93,7 @@ mean.distances %>%
 dendrogram <- hclust(dist(mean.distances, upper = T), method = "ward.D2")
 dendrogram$labels <- theory.list
 par(cex = 1.5, srt = 30)
-png(filename = "../supp_figures/dendrogram.png", res = 300, width = 4000,
+png(filename = "../main_figures/dendrogram.png", res = 300, width = 4000,
     height = 1500, units = "px")
 dendrogram %>% 
   as.dendrogram(hang = 0.1) %>% 
