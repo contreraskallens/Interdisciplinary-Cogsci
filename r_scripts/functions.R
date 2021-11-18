@@ -138,9 +138,7 @@ get.author.stats <- function(author, frame = authors.and.abstracts.cogsci){
   return(author.df)
 }
 
-plot.author <- function(this.author, save = FALSE, 
-                        fill = c(rgb(0.3, 0.3, 0.3, 0.25), rgb(0.62, 0.02, 0.36, 0.5)),
-                        color = ){
+plot.author <- function(this.author, save = FALSE){
   # Function to plot authors as "power charts" or "radar charts"
   # The vertices of the radar are the maximum of each theory and the
   # Base is the minimum of each theory. A grey polygon is drawn to show the mean
@@ -161,15 +159,17 @@ plot.author <- function(this.author, save = FALSE,
   
   max.min <- bind_rows(theory.max, theory.min)
   author.wide <- bind_rows(max.min, theory.mean, author.wide) 
+  colnames(author.wide) <- str_to_title(colnames(author.wide))
   author.plot <- fmsb::radarchart(df = author.wide,
-                                  pcol = c("black", "#dc3091"), # Color for border
+                                  pcol = c("black","black"), # Color for border
                                   pty = c(32, 32), # Symbol of points
                                   plwd = c(1, 3), # Linewidth of border
                                   plty = c(3, 1), # Linetype
-                                  pfcol = color,
+                                  pfcol = c(rgb(0.3, 0.3, 0.3, 0.25),
+                                            rgb(0.26, 0.45, 0.29, 0.5)),
                                   cglty=1, # Linetype for grid
                                   cglwd = 1, # Line width for grid
-                                  cglcol= "#3c0d76", # Line color for grid
+                                  cglcol= "black", # Line color for grid
                                   axistype = 0, # No axis labels
                                   seg = 4, # Number of segments of the radar
                                   axislabcol = "#3c0d76", # Color of axis label
@@ -197,7 +197,6 @@ plot.journal <- function(this.journal){
   
   all.journal.data <- bind_rows(max.min.journal,
                                 upper, mean)
-  print(all.journal.data)
   fmsb::radarchart(df = all.journal.data,
                    pcol = c("black", "black"),
                    pty = c(32, 32),
@@ -214,4 +213,66 @@ plot.journal <- function(this.journal){
                    vlcex = 1,
                    title = paste(this.journal)
   )
+}
+
+bigcor <- function(
+  x, 
+  y = NULL,
+  size = 2000, 
+  verbose = TRUE, 
+  ...)
+{
+  # From https://rmazing.wordpress.com/2013/02/22/bigcor-large-correlation-matrices-in-r/ 
+  NCOL <- ncol(x)
+  ## calculate remainder, largest 'size'-divisible integer and block size
+  REST <- NCOL %% size
+  LARGE <- NCOL - REST  
+  NBLOCKS <- NCOL %/% size
+  resMAT <- matrix(0, nrow = NCOL, ncol = NCOL)
+  STR <- "Correlation"
+  
+  ## split column numbers into 'nblocks' groups + remaining block
+  GROUP <- rep(1:NBLOCKS, each = size)
+  if (REST > 0) GROUP <- c(GROUP, rep(NBLOCKS + 1, REST))
+  SPLIT <- split(1:NCOL, GROUP)
+  
+  ## create all unique combinations of blocks
+  COMBS <- expand.grid(1:length(SPLIT), 1:length(SPLIT))
+  COMBS <- t(apply(COMBS, 1, sort))
+  COMBS <- unique(COMBS)  
+  
+  ## initiate time counter
+  timeINIT <- proc.time() 
+  
+  ## iterate through each block combination, calculate correlation matrix
+  ## between blocks and store them in the preallocated matrix on both
+  ## symmetric sides of the diagonal
+  for (i in 1:nrow(COMBS)) {
+    COMB <- COMBS[i, ]    
+    G1 <- SPLIT[[COMB[1]]]
+    G2 <- SPLIT[[COMB[2]]]    
+    
+    ## if y = NULL
+    if (is.null(y)) {
+      if (verbose) cat(sprintf("#%d: %s of Block %s and Block %s (%s x %s) ... ", i, STR,  COMB[1],
+                               COMB[2], length(G1),  length(G2)))      
+      RES <- cor(x[, G1], x[, G2], method = "spearman")
+      resMAT[G1, G2] <- RES
+      resMAT[G2, G1] <- t(RES) 
+    } else ## if y = smaller matrix or vector  
+    {
+      if (verbose) cat(sprintf("#%d: %s of Block %s and 'y' (%s x %s) ... ", i, STR,  COMB[1],
+                               length(G1),  YCOL))    
+      RES <- cor(x[, G1], y, method = "spearman")
+      resMAT[G1, ] <- RES             
+    }
+    
+    if (verbose) {
+      timeNOW <- proc.time() - timeINIT
+      cat(timeNOW[3], "s\n")
+    }
+    
+    gc()
+  } 
+  return(resMAT)
 }

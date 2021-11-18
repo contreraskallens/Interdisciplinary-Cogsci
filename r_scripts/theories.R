@@ -4,6 +4,7 @@ library(parallelDist)
 library(dendextend)
 library(far)
 library(ggwordcloud)
+library(cowplot)
 source('functions.R')
 set.seed(123)
 
@@ -91,16 +92,17 @@ mean.distances %>%
   geom_text()
 
 dendrogram <- hclust(dist(mean.distances, upper = T), method = "ward.D2")
-dendrogram$labels <- theory.list
-par(cex = 1.5, srt = 30)
+dendrogram$labels <- paste(" ", str_to_title(theory.list))
 png(filename = "../main_figures/dendrogram.png", res = 300, width = 4000,
     height = 1500, units = "px")
 dendrogram %>% 
-  as.dendrogram(hang = 0.1) %>% 
+  as.dendrogram() %>% 
   set("labels_cex", 1.5) %>% 
+  set("branches_lwd", 1.5) %>% 
+  set("hang_leaves", 0.05) %>% 
   as.ggdend() %>% 
   ggplot(horiz = TRUE) +
-  theme(plot.margin = margin(0, 10, 0, 0, "pt"))
+  theme(plot.margin = margin(0, 10, 0, -150, "pt"))
 dev.off()
 
 # Train GLMs --------
@@ -144,20 +146,20 @@ all.glm <- map(theories, function(this.theory){
 
 # Load the document by term matrix of the new papers
 # Takes quite some time to read, so you might want to uncompress and then load the .csv
-# topics.dbt <- read_csv('../theories_data/all_dbt.zip') %>%
-#   select(-1) %>%
-#   as.matrix()
+topics.dbt <- read_csv('../theories_data/all_dbt.csv') %>%
+  select(-1) %>%
+  as.matrix()
 # 
 # Determine the shared terms between the Scientometrics dbt and the new dbt
-# shared.terms <- colnames(topics.dbt)[colnames(topics.dbt) %in% colnames(theories.dbt)]
-# topics.dbt.reduced <- topics.dbt[,shared.terms] %>%
-#   as.matrix()
-# rm(topics.dbt)
+shared.terms <- colnames(topics.dbt)[colnames(topics.dbt) %in% colnames(theories.dbt)]
+topics.dbt.reduced <- topics.dbt[,shared.terms] %>%
+  as.matrix()
+rm(topics.dbt)
 
 # Save reduced dbt to avoid loading entire thing every time
-# topics.dbt.reduced %>% 
-#   as_data_frame() %>% 
-#   write_csv("all_dbt_reduced.csv")
+# topics.dbt.reduced %>%
+  # as_data_frame() %>%
+  # write_csv("all_dbt_reduced.csv")
 
 # Load product of previous steps
 topics.dbt.reduced <- read_csv("../theories_data/all_dbt_reduced.zip") %>% 
@@ -314,8 +316,6 @@ wordclouds <- map(theories, function(theory){
     theme_cowplot() + 
     theme(axis.line = element_blank(),
           panel.border = element_rect(colour = "black", fill=NA, size=1))
-  ggsave(positive, filename = paste0("../supp_figures/word_clouds/positive_wordcloud_", theory, ".png"), scale = 1.5, device = "png")
-  ggsave(negative, filename = paste0("../supp_figures/word_clouds/negative_wordcloud_", theory, ".png"), scale = 1.5, device = "png")
   return(list(positive = positive, negative = negative))
 })
 
@@ -334,4 +334,4 @@ plot_grid(wordclouds$bayesian$positive, wordclouds$bayesian$negative,
                                             "Ecological - Positive", "Ecological - Negative", "Embodied - Positive", "Embodied - Negative",
                                             "Enactive - Positive", "Enactive - Negative", "Symbolic - Positive", "Symbolic - Negative"), 
           label_size = 30)
-ggsave("../supp_figures/wordcloud_panel.png", dpi = 600, width = 20, height = 25, units = "in")
+ggsave("../supp_figures/wordcloud_panel.png", dpi = 600, width = 20, height = 25, units = "in", bg = "white")
