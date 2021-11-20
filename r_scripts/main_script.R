@@ -23,10 +23,17 @@ complete.frame <- left_join(complete.frame, journal.metadata)
 complete.frame <- complete.frame %>%
   mutate(Number.Of.Publications.Log = log(Number.Of.Publications),
          Number.Of.Authors.Log = log(Number.Of.Authors))
-njsd.reg <- lm(data = complete.frame, NJSD ~ Label + gini + Number.Of.Publications.Log + Number.Of.Authors.Log) 
+
+# Evaluate full model
+lm(data = complete.frame, NJSD ~ Label + gini*Number.Of.Publications.Log*Number.Of.Authors.Log) %>% 
+  summary()
+
+# Don't use number of authors. No interaction is significant.
+njsd.reg <- lm(data = complete.frame, NJSD ~ Label + gini + Number.Of.Publications.Log) 
 
 # Get semi partial R^2 of Journal
-njsd.reg.reduced <- lm(data = complete.frame, NJSD ~ gini + Number.Of.Publications.Log + Number.Of.Authors.Log) 
+njsd.reg.reduced <- lm(data = complete.frame, NJSD ~ gini + 
+                         Number.Of.Publications.Log) 
 summary(njsd.reg)$adj.r.squared - summary(njsd.reg.reduced)$adj.r.squared
 
 # Get model comparison for including Journal factor
@@ -34,7 +41,7 @@ anova(njsd.reg.reduced, njsd.reg) %>%
   gt() %>% 
   fmt_number(everything(), decimals = 2) %>% 
   tab_header("Model comparison for the inclusion of Journal")
-  
+
 # Get estimated mean NJSD that's controlled for variables
 njsd.frame <- emmeans(njsd.reg, "Label") %>% 
   summary() %>% 
@@ -103,36 +110,29 @@ ggsave(plot = njsd.with.dists, filename = "../main_figures/njsd_with_dists.png",
 
 complete.frame <- mutate(complete.frame, YearNum = as.numeric(Year))
 
-# Journal by journal
-year.reg.journal <- lm(data = complete.frame, NJSD ~ Label + YearNum + Label * YearNum + gini + Number.Of.Authors.Log + Number.Of.Publications.Log)
-summary(year.reg.journal)
-year.journal.frame <- summary(ref_grid(year.reg.journal, at = list(YearNum = (2009:2018)))) %>% 
-  left_join(journal.metadata)
-
-# Estimate table
-year.journal.frame %>% 
-  select(Label, Topic, YearNum, prediction, everything(), -Journal, -CogSciSoc,
-         -gini, -Number.Of.Authors.Log, -Number.Of.Publications.Log) %>% 
-  gt() %>% 
-  fmt_number(-(c("Label", "Topic")), decimals = 3) %>% 
-  fmt_number("YearNum", decimals = 0) %>% 
-  tab_header("Predicted mean NJSD controlling for covariates per year")
-
-# Plot
-journal.year.plot <- ggplot() + 
-  geom_point(data = filter(year.journal.frame, CogSciSoc != "CogSciSoc"), 
-             aes(x = YearNum, y = prediction), color = "black", size = 1) +
-  geom_point(data = filter(year.journal.frame, CogSciSoc == "CogSciSoc"), 
-             aes(x = YearNum, y = prediction), color = "red", size = 2) +
-  theme_cowplot() +
-  labs(y = "NJSD", x = "Year") +
-  scale_x_continuous(breaks = c(2009:2018), labels = c(2009:2018))
-journal.year.plot
-
 # Time series per topic
-year.reg.topic <- lm(data = filter(complete.frame, Topic != "Other"), NJSD ~ YearNum + Topic + YearNum * Topic + 
-                       Number.Of.Publications.Log + Number.Of.Authors.Log + gini)
-year.topic.frame <- summary(ref_grid(year.reg.topic, at = list(YearNum = c(2009:2018))))
+year.reg.topic <- lm(data = filter(complete.frame, Topic != "Other"), 
+                     NJSD ~ YearNum + Topic + YearNum * Topic + 
+                       Number.Of.Publications.Log + gini)
+# Pairwise comparisons in every year
+emmeans(year.reg.topic, 
+        specs = pairwise ~ Topic | YearNum, 
+        at = list(YearNum = 2009:2018), 
+        adjust = "bonferroni") %>% 
+  .$contrasts %>% 
+  summary() %>% 
+  gt() %>% 
+  fmt_number(-contrast, decimals = 3, 
+             drop_trailing_zeros = TRUE) %>% 
+  fmt_number(YearNum, use_seps = FALSE, 
+             drop_trailing_zeros = TRUE) %>% 
+  tab_header(title = "By year contrasts between topics")
+
+# Contrasts of the slope
+emtrends(year.reg.topic, pairwise ~ Topic, var = "YearNum")
+
+
+year.topic.frame <- summary(ref_grid(year.reg.topic, at = list(YearNum = c(2009:2018))), infer = TRUE)
 year.topic.frame %>% 
   select(Topic, YearNum, prediction, SE) %>% 
   gt() %>% 
@@ -141,24 +141,54 @@ year.topic.frame %>%
   tab_header("Predicted mean NJSD controlling for covariates per year per topic")
 
 topic.year.plot <- ggplot(data = year.topic.frame, 
-                          aes(x = YearNum, y = prediction, group = Topic)) +
+                          aes(x = YearNum, y = prediction, group = Topic,
+                              fill = Topic,
+                              ymax = upper.CL, ymin = lower.CL)) +
+  geom_ribbon(alpha = 0.2) +
   geom_line(aes(color = Topic), size = 1) +
-  geom_point(aes(fill = Topic), shape = 23, size = 3) +
+  geom_point(aes(fill = Topic), shape = 23, size = 2) + 
   theme_cowplot() +
   scale_x_continuous(breaks = c(2009:2018), labels = c(2009:2018)) +
-  labs(y = "NJSD", "Year")
+  labs(y = "NJSD", x = "Year")
 topic.year.plot
-year.grid <- plot_grid(journal.year.plot, topic.year.plot, nrow = 1,
+
+
+# Journal by journal
+year.reg.journal <- lm(data = complete.frame, NJSD ~ Label + YearNum + Label * YearNum + 
+                         gini + Number.Of.Publications.Log)
+summary(year.reg.journal)
+year.journal.frame <- summary(ref_grid(year.reg.journal, at = list(YearNum = (2009:2018)))) %>% 
+  left_join(journal.metadata)
+
+# Estimate table
+year.journal.frame %>% 
+  select(Label, Topic, YearNum, prediction, everything(), -Journal, -CogSciSoc,
+         -gini, -Number.Of.Publications.Log) %>% 
+  gt() %>% 
+  fmt_number(-(c("Label", "Topic")), decimals = 3) %>% 
+  fmt_number("YearNum", decimals = 0) %>% 
+  tab_header("Predicted mean NJSD controlling for covariates per year")
+
+# Plot
+journal.year.plot <- ggplot() + 
+  geom_boxplot(data = year.journal.frame, 
+               aes(x = YearNum, y = prediction, group = YearNum),
+               width = 0.2) +
+  geom_point(data = filter(year.journal.frame, CogSciSoc != "CogSciSoc"), 
+             aes(x = YearNum, y = prediction), color = "black", size = 1) +
+  geom_point(data = filter(year.journal.frame, CogSciSoc == "CogSciSoc"), 
+             aes(x = YearNum, y = prediction), color = "red", size = 2) +
+  theme_cowplot() +
+  labs(y = "NJSD", x = "Year") +
+  scale_x_continuous(breaks = c(2009:2018), labels = c(2009:2018))
+
+journal.year.plot
+
+year.grid <- plot_grid(topic.year.plot, journal.year.plot, nrow = 1,
                        labels = c("A", "B"))
 year.grid
-ggsave(plot = year.grid, filename = "../main_figures/year_grid.png", width = 15,
-       height = 7, dpi = 300, bg = "white")
-
-# Interaction between cogsci-noncogsci and year
-type.reg <- lm(formula = NJSD ~ CogSciSoc + gini + Number.Of.Authors.Log +
-                 Number.Of.Publications.Log +  YearNum + CogSciSoc * YearNum, 
-               data = complete.frame)
-summary(type.reg)
+ggsave(plot = year.grid, filename = "../main_figures/year_grid.png", width = 13,
+       height = 4.5, dpi = 300, bg = "white")
 
 # Author plots ----
 

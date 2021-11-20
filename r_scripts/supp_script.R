@@ -38,10 +38,9 @@ jsd.frame <- jsd.reg %>%
   emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>% 
-  rename(Journal = Label) %>% 
   left_join(journal.metadata)
 jsd.plot <- jsd.frame %>% 
-  ggplot(aes(x = Journal, y = emmean,
+  ggplot(aes(x = Label, y = emmean,
              ymin = lower.CL, ymax = upper.CL, color = CogSciSoc)) +
   geom_errorbar(width = 0.5, size = 1) +
   geom_linerange(size = 1) +
@@ -52,7 +51,7 @@ jsd.plot <- jsd.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_color_manual(values = c("red", "black")) +
   scale_y_continuous(breaks = seq(0.0, 1, 0.05))
 
 jsd.cluster.reg <- lm(data = complete.frame, cluster.JSD ~ Label + gini + 
@@ -61,10 +60,9 @@ jsd.cluster.frame <- jsd.cluster.reg %>%
   emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>% 
-  rename(Journal = Label) %>% 
   left_join(journal.metadata)
 jsd.cluster.plot <- jsd.cluster.frame %>% 
-  ggplot(aes(x = Journal, y = emmean,
+  ggplot(aes(x = Label, y = emmean,
              ymin = lower.CL, ymax = upper.CL, color = CogSciSoc)) +
   geom_errorbar(width = 0.5, size = 1) +
   geom_linerange(size = 1) +
@@ -75,7 +73,7 @@ jsd.cluster.plot <- jsd.cluster.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_color_manual(values = c("red", "black")) +
   scale_y_continuous(breaks = seq(0.0, 1, 0.05)) +
   theme(axis.text.y = element_blank())
 
@@ -86,7 +84,6 @@ njsd.cluster.frame <- njsd.cluster.reg %>%
   emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>% 
-  rename(Journal = Label) %>% 
   left_join(journal.metadata)
 
 njsd.cluster.plot <- njsd.cluster.frame %>% 
@@ -101,7 +98,7 @@ njsd.cluster.plot <- njsd.cluster.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_color_manual(values = c("red", "black")) +
   scale_y_continuous(breaks = seq(0.0, 0.5, 0.01)) +
   theme(axis.text.y = element_blank())
 
@@ -114,10 +111,9 @@ pairwise.frame <- pairwise.reg %>%
   emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>%
-  rename(Journal = Label) %>% 
   left_join(journal.metadata)
 pairwise.plot <- pairwise.frame %>% 
-  ggplot(aes(x = Journal, y = emmean,
+  ggplot(aes(x = Label, y = emmean,
              ymin = lower.CL, ymax = upper.CL, color = CogSciSoc)) +
   geom_errorbar(width = 0.5, size = 1) +
   geom_linerange(size = 1) +
@@ -128,7 +124,7 @@ pairwise.plot <- pairwise.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_color_manual(values = c("red", "black")) +
   scale_y_continuous(breaks = seq(0.0, 0.5, 0.01))
 
 pairwise.cluster.reg <- lm(data = complete.frame, 
@@ -138,7 +134,6 @@ pairwise.cluster.frame <- pairwise.cluster.reg %>%
   emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>%
-  rename(Journal = Label) %>% 
   left_join(journal.metadata)
 
 pairwise.cluster.plot <- pairwise.cluster.frame %>% 
@@ -153,7 +148,7 @@ pairwise.cluster.plot <- pairwise.cluster.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_color_manual(values = c("red", "black")) +
   scale_y_continuous(breaks = seq(0.0, 0.5, 0.01)) +
   theme(axis.text.y = element_blank())
 
@@ -165,7 +160,6 @@ euclidean.frame <- euclidean.reg %>%
   emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>%
-  rename(Journal = Label) %>% 
   left_join(journal.metadata)
 
 euclidean.plot <- euclidean.frame %>% 
@@ -180,7 +174,7 @@ euclidean.plot <- euclidean.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_color_manual(values = c("red", "black")) +
   scale_y_continuous(breaks = seq(10, 25, 1))
 
 euclidean.cluster.reg <- lm(data = complete.frame, 
@@ -190,7 +184,6 @@ euclidean.cluster.frame <- euclidean.cluster.reg %>%
   emmeans("Label") %>% 
   summary() %>% 
   arrange(desc(emmean)) %>%
-  rename(Journal = Label) %>% 
   left_join(journal.metadata)
 
 euclidean.cluster.plot <- euclidean.cluster.frame %>% 
@@ -205,9 +198,20 @@ euclidean.cluster.plot <- euclidean.cluster.frame %>%
   background_grid() + 
   theme(legend.position = "none",
         axis.title.y = element_blank()) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_color_manual(values = c("red", "black")) +
   scale_y_continuous(breaks = seq(20, 30, 1)) +
   theme(axis.text.y = element_blank())
+
+njsd.cluster.frame %>% 
+  select(Label, emmean.cluster = emmean, 
+         lower.CL.cluster = lower.CL, upper.CL.cluster = upper.CL) %>% 
+  right_join(njsd.frame) %>% 
+  select(-Journal, -Topic, -CogSciSoc) %>% 
+  select(Label, emmean, emmean.cluster, lower.CL, 
+         lower.CL.cluster, upper.CL, upper.CL.cluster) %>% 
+  gt() %>% 
+  fmt_number(-Label, decimals = 3, drop_trailing_zeros = TRUE) %>% 
+  tab_header(title = "Difference in EMM between normal clustered approach")
 
 # Make a grid with all 8 measures
 
@@ -223,8 +227,6 @@ measure.grid <- plot_grid(NULL, njsd.plot, njsd.cluster.plot,
                           label_size = 30)
 ggsave(plot = measure.grid, filename = "../supp_figures/measure_grid.png", width = 15,
        height = 20, dpi = 300, bg = "white")
-
-
 
 # Plot journals -----
 
@@ -256,7 +258,7 @@ max.journal <- journal.boot %>%
   summarize_all(max)
 max.min.journal <- bind_rows(max.journal, min.journal)
 colnames(max.min.journal) <- theory.levels
-png("../main_figures/journal_chart.png", width = 10, height = 5, units = 'in', res = 300)
+png("../supp_figures/journal_chart.png", width = 10, height = 5, units = 'in', res = 300)
 par(mfrow=c(2,4))
 for(journal in journal.boot$Journal){
   plot.journal(journal)
@@ -266,7 +268,9 @@ dev.off()
 # Plot all other authors if you want ----
 
 # Get all authors with more than 2 publications
-# all.authors <- all.author.stats$author %>% unique()
+all.authors <- all.author.stats$author %>% unique()
+print("Number of authors with figures")
+print(length(all.authors))
 # 
 # for(author in all.authors){
 #   print(author)

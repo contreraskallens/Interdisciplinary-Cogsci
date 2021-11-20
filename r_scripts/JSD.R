@@ -9,85 +9,85 @@ source('functions.R')
 years <- read_rds('../saved_objects/journalData.rds') # Saved product from previous
 publication.count.matrix <- read_rds('../saved_objects/authorByJournal_id.rds')
 
-# JSD ----
-
-# Loop through every journal to prepare data for JSD computation.
-# Years is a list where every element is a year.
-# Each year contains a list for each of the journals in the data.
-# Each journal list is cleaned to keep only information relevant to compute jsd.
-# Loop returns a list where every element is an article.
-data.for.jsd <- years %>%
-  map(.x = ., .f = function(yearlist){
-    map(.x = yearlist, .f = function(mylist){
-      mylist <- clean.for.JSD(mylist)}) %>%
-      unlist(recursive = F)
-  }) %>%
-  unlist(recursive = F)
-
-names(data.for.jsd) <- c()
-
-# For every article in the database, get the authors ids. Returns as list.
-authors.per.article <- map(data.for.jsd, get.authors) 
-
-# Eliminate from data.for.jsd and authors.per.article 
-# all the articles that have only 1 author
-n.authors <- map_dbl(authors.per.article, length)
-data.for.jsd <- data.for.jsd[n.authors > 1]
-authors.per.article <- authors.per.article[n.authors > 1] 
-unique.authors <- authors.per.article %>% 
-  unlist() %>% 
-  unique()
-authors.with.data <- unique.authors %in% row.names(publication.count.matrix)
-unique.authors <- unique.authors[authors.with.data] # only authors with data
-publication.count.matrix <- publication.count.matrix[unique.authors, ] # Keeps only co-authors with data
-
-# Mean pubs per author and unique authors per journal before cleanup
-rowSums(publication.count.matrix) %>% mean()
-rowSums(publication.count.matrix) %>% sd()
-(publication.count.matrix > 0) %>% colSums() %>% mean()
-(publication.count.matrix > 0) %>% colSums() %>% sd()
-
-author.threshold <- 2 # Define a threshold of number of unique authors to keep a journal in the matrix.
-journal.count.matrix <- publication.count.matrix > 0
-journals.over.threshold <- colSums(journal.count.matrix) > author.threshold
-considered.journals <- colnames(publication.count.matrix)[journals.over.threshold]
-publication.count.matrix <- publication.count.matrix[, considered.journals]
-
-pub.threshold <- 1 # Define a threshold of number of publications per author to be included.
-pubs.per.author <- rowSums(publication.count.matrix)
-considered.authors <- unique.authors[pubs.per.author > pub.threshold]
-publication.count.matrix <- publication.count.matrix[considered.authors, ]
-
-# Do cleanup again to remove stragglers. This is one is enough.
-journal.count.matrix <- publication.count.matrix > 0
-journals.over.threshold <- colSums(journal.count.matrix) > author.threshold
-considered.journals <- colnames(publication.count.matrix)[journals.over.threshold]
-publication.count.matrix <- publication.count.matrix[, considered.journals]
-
-pubs.per.author <- rowSums(publication.count.matrix)
-considered.authors <- considered.authors[pubs.per.author > pub.threshold]
-publication.count.matrix <- publication.count.matrix[considered.authors, ]
-
-# Now do a second pass through all the articles to see which ones 
-# remain after previous cleanup.
-co.authored.with.data <- map(data.for.jsd, function(authors){
-  article.authors <- get.authors(authors)
-  authors.with.data <- article.authors[article.authors %in% considered.authors]
-  if(length(authors.with.data) <= 1){
-    return(NA)
-  }else{
-    these.authors.matrix <- publication.count.matrix[authors.with.data, considered.journals]
-    these.authors.journals <- colSums(these.authors.matrix)
-    these.authors.journals <- colnames(these.authors.matrix)[these.authors.journals > 0]
-    return(list("authors" = authors.with.data, "journals" = these.authors.journals))
-  }
-})
-data.for.jsd <- data.for.jsd[!(is.na(co.authored.with.data))]
-co.authored.with.data <- co.authored.with.data[!(is.na(co.authored.with.data))]
-co.authors.per.article <- map(co.authored.with.data, function(x){return(x$authors)})
-considered.authors <- co.authors.per.article %>% 
-  unlist() %>% 
-  unique()
+  # JSD ----
+  
+  # Loop through every journal to prepare data for JSD computation.
+  # Years is a list where every element is a year.
+  # Each year contains a list for each of the journals in the data.
+  # Each journal list is cleaned to keep only information relevant to compute jsd.
+  # Loop returns a list where every element is an article.
+  data.for.jsd <- years %>%
+    map(.x = ., .f = function(yearlist){
+      map(.x = yearlist, .f = function(mylist){
+        mylist <- clean.for.JSD(mylist)}) %>%
+        unlist(recursive = F)
+    }) %>%
+    unlist(recursive = F)
+  
+  names(data.for.jsd) <- c()
+  
+  # For every article in the database, get the authors ids. Returns as list.
+  authors.per.article <- map(data.for.jsd, get.authors) 
+  
+  # Eliminate from data.for.jsd and authors.per.article 
+  # all the articles that have only 1 author
+  n.authors <- map_dbl(authors.per.article, length)
+  data.for.jsd <- data.for.jsd[n.authors > 1]
+  authors.per.article <- authors.per.article[n.authors > 1] 
+  unique.authors <- authors.per.article %>% 
+    unlist() %>% 
+    unique()
+  authors.with.data <- unique.authors %in% row.names(publication.count.matrix)
+  unique.authors <- unique.authors[authors.with.data] # only authors with data
+  publication.count.matrix <- publication.count.matrix[unique.authors, ] # Keeps only co-authors with data
+  
+  # Mean pubs per author and unique authors per journal before cleanup
+  rowSums(publication.count.matrix) %>% mean()
+  rowSums(publication.count.matrix) %>% sd()
+  (publication.count.matrix > 0) %>% colSums() %>% mean()
+  (publication.count.matrix > 0) %>% colSums() %>% sd()
+  
+  author.threshold <- 2 # Define a threshold of number of unique authors to keep a journal in the matrix.
+  journal.count.matrix <- publication.count.matrix > 0
+  journals.over.threshold <- colSums(journal.count.matrix) > author.threshold
+  considered.journals <- colnames(publication.count.matrix)[journals.over.threshold]
+  publication.count.matrix <- publication.count.matrix[, considered.journals]
+  
+  pub.threshold <- 1 # Define a threshold of number of publications per author to be included.
+  pubs.per.author <- rowSums(publication.count.matrix)
+  considered.authors <- unique.authors[pubs.per.author > pub.threshold]
+  publication.count.matrix <- publication.count.matrix[considered.authors, ]
+  
+  # Do cleanup again to remove stragglers. This is one is enough.
+  journal.count.matrix <- publication.count.matrix > 0
+  journals.over.threshold <- colSums(journal.count.matrix) > author.threshold
+  considered.journals <- colnames(publication.count.matrix)[journals.over.threshold]
+  publication.count.matrix <- publication.count.matrix[, considered.journals]
+  
+  pubs.per.author <- rowSums(publication.count.matrix)
+  considered.authors <- considered.authors[pubs.per.author > pub.threshold]
+  publication.count.matrix <- publication.count.matrix[considered.authors, ]
+  
+  # Now do a second pass through all the articles to see which ones 
+  # remain after previous cleanup.
+  co.authored.with.data <- map(data.for.jsd, function(authors){
+    article.authors <- get.authors(authors)
+    authors.with.data <- article.authors[article.authors %in% considered.authors]
+    if(length(authors.with.data) <= 1){
+      return(NA)
+    }else{
+      these.authors.matrix <- publication.count.matrix[authors.with.data, considered.journals]
+      these.authors.journals <- colSums(these.authors.matrix)
+      these.authors.journals <- colnames(these.authors.matrix)[these.authors.journals > 0]
+      return(list("authors" = authors.with.data, "journals" = these.authors.journals))
+    }
+  })
+  data.for.jsd <- data.for.jsd[!(is.na(co.authored.with.data))]
+  co.authored.with.data <- co.authored.with.data[!(is.na(co.authored.with.data))]
+  co.authors.per.article <- map(co.authored.with.data, function(x){return(x$authors)})
+  considered.authors <- co.authors.per.article %>% 
+    unlist() %>% 
+    unique()
 considered.journals <- map(co.authored.with.data, function(x){return(x$journals)}) %>% 
   unlist() %>% 
   unique()
