@@ -25,12 +25,17 @@ complete.frame <- complete.frame %>%
          Number.Of.Authors.Log = log(Number.Of.Authors))
 
 # Evaluate full model
-lm(data = complete.frame, NJSD ~ Label + gini*Number.Of.Publications.Log*Number.Of.Authors.Log) %>% 
-  summary()
+full_model <- lm(data = complete.frame, NJSD ~ Label + gini*Number.Of.Publications.Log*Number.Of.Authors.Log) 
+full_model %>% 
+  summary() 
+
+# Without interactions. This is the model that was reported in the supplementary materials as the "overall" model.
+lm(data = complete.frame, NJSD ~ Label + gini + Number.Of.Publications.Log + Number.Of.Authors.Log) 
 
 # Don't use number of authors. No interaction is significant.
 njsd.reg <- lm(data = complete.frame, NJSD ~ Label + gini + Number.Of.Publications.Log) 
-
+summary(njsd.reg)
+rsq::rsq.partial(njsd.reg)
 # Get semi partial R^2 of Journal
 njsd.reg.reduced <- lm(data = complete.frame, NJSD ~ gini + 
                          Number.Of.Publications.Log) 
@@ -110,10 +115,17 @@ ggsave(plot = njsd.with.dists, filename = "../main_figures/njsd_with_dists.png",
 
 complete.frame <- mutate(complete.frame, YearNum = as.numeric(Year))
 
+# Evaluate full model
+year.reg.topic.full <- lm(data = filter(complete.frame, Topic != "Other"), 
+                     NJSD ~ YearNum + Topic + YearNum * Topic + 
+                       Number.Of.Publications.Log + gini + Number.Of.Authors.Log)
+
+summary(year.reg.topic.full)
 # Time series per topic
 year.reg.topic <- lm(data = filter(complete.frame, Topic != "Other"), 
                      NJSD ~ YearNum + Topic + YearNum * Topic + 
                        Number.Of.Publications.Log + gini)
+summary(year.reg.topics)
 # Pairwise comparisons in every year
 emmeans(year.reg.topic, 
         specs = pairwise ~ Topic | YearNum, 
@@ -154,6 +166,11 @@ topic.year.plot
 
 
 # Journal by journal
+# Evaluate full model
+year.reg.journal.full <- lm(data = filter(complete.frame, Topic != "Other"), 
+                          NJSD ~ YearNum + Topic + YearNum * Topic + 
+                            Number.Of.Publications.Log + gini + Number.Of.Authors.Log)
+
 year.reg.journal <- lm(data = complete.frame, NJSD ~ Label + YearNum + Label * YearNum + 
                          gini + Number.Of.Publications.Log)
 summary(year.reg.journal)
